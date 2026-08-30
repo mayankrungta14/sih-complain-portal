@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+.venv/
+
+# Database
+*.db
+*.sqlite3
+sih.db
+
+# OS Files
+.DS_Store
+Thumbs.db

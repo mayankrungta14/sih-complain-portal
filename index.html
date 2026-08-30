@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jan-Awaaz | National AI Multilingual Grievance Redressal Portal</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Leaflet CSS for India Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- jsPDF & html2canvas for Bilingual PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', 'Noto Sans Devanagari', sans-serif; }
+        .view-panel { display: none; }
+        .view-panel.active { display: block; }
+        .tricolor-bar { background: linear-gradient(90deg, #FF9933 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #138808 66.6%); height: 4px; }
+        #map-container { height: 450px; width: 100%; border-radius: 0.75rem; z-index: 1; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .pulse-mic { animation: pulseGlow 1.8s infinite; }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); transform: scale(1); }
+            70% { box-shadow: 0 0 0 18px rgba(239, 68, 68, 0); transform: scale(1.08); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- 1. Government Official Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="tricolor-bar"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex justify-between items-center">
+            <!-- Left Branding -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateTo('view-landing')">
+                <div class="w-12 h-12 bg-blue-900 rounded-full flex items-center justify-center text-amber-400 font-bold text-xl shadow-md border-2 border-amber-400">
+                    🏛️
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Government of India / भारत सरकार</span>
+                        <span class="bg-blue-100 text-blue-800 text-[10px] font-semibold px-2 py-0.5 rounded-full">SIH 2026</span>
+                    </div>
+                    <h1 class="text-xl sm:text-2xl font-extrabold text-blue-950 tracking-tight flex items-center gap-2">
+                        <span>जन-आवाज़</span>
+                        <span class="text-sm font-normal text-slate-600 hidden sm:inline">| Jan-Awaaz National Multilingual Portal</span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Right Controls -->
+            <div class="flex items-center gap-3">
+                <div id="current-lang-pill" class="hidden md:flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-900 px-3 py-1.5 rounded-full text-xs font-bold">
+                    <i class="fas fa-language text-blue-600"></i>
+                    <span id="selected-lang-label">हिन्दी (Hindi)</span>
+                </div>
+                <button id="nav-logout-btn" class="hidden text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg font-semibold transition" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Body Container: Left/Center Main Workspace + Right 50-Languages Sidebar -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- ================= LEFT / MAIN CONTENT AREA (8 Cols on Desktop) ================= -->
+        <main class="lg:col-span-8 flex flex-col space-y-6">
+
+            <!-- VIEW 1: LANDING & UNIFIED GATEWAY -->
+            <div id="view-landing" class="view-panel active space-y-6">
+                
+                <!-- Hero Banner -->
+                <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white rounded-2xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
+                    <div class="absolute right-0 top-0 opacity-10 text-9xl font-black select-none pointer-events-none">INDIA</div>
+                    <div class="relative z-10 space-y-3">
+                        <span data-i18n-key="badge_ai" class="bg-amber-400 text-blue-950 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                            AI-Powered Voice & Dialect Inclusivity
+                        </span>
+                        <h2 data-i18n-key="hero_title" class="text-2xl sm:text-4xl font-extrabold leading-tight">
+                            अपनी भाषा में शिकायत दर्ज करें
+                        </h2>
+                        <p data-i18n-key="hero_desc" class="text-blue-100 text-sm sm:text-base max-w-xl">
+                            File public grievances in any Indian language or dialect via voice. AI automatically detects your language, routes to the right department, tracks with visual GPS/photos, and generates bilingual legal receipts.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Voice AI Assistant Bar with Cancel & Re-record -->
+                <div class="bg-white border-2 border-dashed border-blue-300 hover:border-blue-500 rounded-2xl p-6 shadow-sm transition">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <button id="voice-detect-btn" class="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white text-2xl flex items-center justify-center shadow-lg transition flex-shrink-0" onclick="toggleVoiceLanguageDetection()">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <div>
+                                <h3 class="font-bold text-slate-900 text-base sm:text-lg flex items-center gap-2">
+                                    <span data-i18n-key="mic_title">बोलो और अपनी भाषा चुनें</span>
+                                    <span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">Voice AI</span>
+                                </h3>
+                                <p id="voice-status-text" data-i18n-key="mic_desc" class="text-xs sm:text-sm text-slate-500">
+                                    Click mic and speak a few words in your mother tongue (even unlisted dialects).
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Voice Actions: Cancel, Re-record, Confirm -->
+                        <div id="voice-action-controls" class="hidden flex items-center gap-2">
+                            <button class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-medium" onclick="cancelVoiceInput()">
+                                <i class="fas fa-trash-alt text-red-500"></i> <span data-i18n-key="btn_cancel">Cancel</span>
+                            </button>
+                            <button class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium" onclick="toggleVoiceLanguageDetection()">
+                                <i class="fas fa-redo"></i> <span data-i18n-key="btn_rerecord">Re-record</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Voice Transcript Bubble -->
+                    <div id="voice-transcript-box" class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 hidden">
+                        <span data-i18n-key="lbl_recorded" class="font-semibold text-blue-900">Recorded Speech:</span>
+                        <p id="voice-transcript-text" class="italic text-slate-800 mt-1"></p>
+                    </div>
+                </div>
+
+                <!-- Unified Gateway & Login Card -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Unified Login Card (Citizen Phone OR Officer Email) -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-center gap-2 border-b pb-3">
+                            <i class="fas fa-user-shield text-blue-700 text-xl"></i>
+                            <div>
+                                <h3 data-i18n-key="login_title" class="font-bold text-slate-900">Unified Portal Login</h3>
+                                <p data-i18n-key="login_desc" class="text-xs text-slate-500">Citizen Phone or Official Gov Email</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <label data-i18n-key="lbl_login_input" class="block text-xs font-semibold text-slate-600">Mobile Number / Email ID</label>
+                            <input type="text" id="unified-identifier-input" class="w-full border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 p-3 rounded-xl text-sm" placeholder="e.g. 9876543210 or your email">
+                            
+                            <!-- Officer Dept Code Field (Appears dynamically if officer email detected) -->
+                            <div id="officer-dept-box" class="hidden space-y-2 bg-blue-50 p-3 rounded-xl border border-blue-200">
+                                <label data-i18n-key="lbl_dept_code" class="block text-xs font-bold text-blue-900">Department Code</label>
+                                <select id="officer-dept-select" class="w-full border border-blue-300 p-2.5 rounded-lg text-sm bg-white font-semibold">
+                                    <option value="WTR">WTR - Jal Board / Water Supply</option>
+                                    <option value="ELE">ELE - Electricity & Power Board</option>
+                                    <option value="RDS">RDS - Roads & Highways (PWD)</option>
+                                    <option value="SNT">SNT - Municipal Sanitation & Waste</option>
+                                    <option value="POL">POL - Police & Security</option>
+                                    <option value="OTH">OTH - General Administration</option>
+                                </select>
+                            </div>
+
+                            <button id="unified-login-btn" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2" onclick="handleUnifiedLogin()">
+                                <span data-i18n-key="btn_continue_otp">Continue with OTP</span>
+                                <i class="fas fa-arrow-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Direct Grievance ID Tracking Card -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 border-b pb-3">
+                                <i class="fas fa-search-location text-amber-600 text-xl"></i>
+                                <div>
+                                    <h3 class="font-bold text-slate-900">Track Grievance Status</h3>
+                                    <p class="text-xs text-slate-500">Check live progress without logging in</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 space-y-3">
+                                <label class="block text-xs font-semibold text-slate-600">Enter Grievance Reference ID</label>
+                                <input type="text" id="direct-track-input" class="w-full border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 p-3 rounded-xl text-sm font-mono uppercase" placeholder="e.g. WTR-8K9L2M">
+                            </div>
+                        </div>
+
+                        <button class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2" onclick="handleDirectTrack()">
+                            <i class="fas fa-search text-xs"></i>
+                            <span>Track Live Status</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- VIEW 2: OTP VERIFICATION MODAL / VIEW -->
+            <div id="view-otp" class="view-panel bg-white rounded-2xl p-8 border border-slate-200 shadow-sm space-y-6 max-w-md mx-auto">
+                <div class="text-center space-y-2">
+                    <div class="w-12 h-12 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <h3 class="text-xl font-extrabold text-slate-900">Enter OTP Verification</h3>
+                    <p id="otp-phone-subtext" class="text-xs text-slate-500">OTP sent to your registered mobile number</p>
+                </div>
+
+                <div class="space-y-4">
+                    <input type="text" id="otp-input-field" class="w-full text-center tracking-widest text-2xl font-bold border border-slate-300 p-3 rounded-xl focus:ring-2 focus:ring-blue-500" placeholder="123456" maxlength="6" value="123456">
+                    <button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-md transition" onclick="verifyOTPAndProceed()">
+                        Verify & Access Portal
+                    </button>
+                    <button class="w-full text-xs text-slate-500 underline" onclick="navigateTo('view-landing')">Back to Home</button>
+                </div>
+            </div>
+
+            <!-- VIEW 3: CITIZEN PROFILE SETUP (Full Name & Home Address via Voice/Text) -->
+            <div id="view-citizen-profile" class="view-panel bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                <div class="border-b pb-4">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Step 1 of 2</span>
+                    <h2 class="text-2xl font-extrabold text-slate-900">Citizen Profile Details / नागरिक विवरण</h2>
+                    <p class="text-xs sm:text-sm text-slate-500">
+                        Please provide your full name and permanent home address (separate from incident spot).
+                    </p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Voice Auto-Fill Helper -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 text-xs text-blue-900 font-semibold">
+                            <i class="fas fa-microphone text-blue-600"></i>
+                            <span>Tap mic & say: "My name is [Name], resident of [Address]"</span>
+                        </div>
+                        <button class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-700" onclick="recordProfileVoice()">
+                            Speak Details
+                        </button>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Full Legal Name / पूरा नाम</label>
+                        <input type="text" id="citizen-name-input" class="w-full border border-slate-300 p-3 rounded-xl text-sm" placeholder="e.g. Ramesh Kumar">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Permanent Home Address / स्थायी पता</label>
+                        <textarea id="citizen-home-address-input" class="w-full border border-slate-300 p-3 rounded-xl text-sm h-24" placeholder="e.g. Village Rampur, Post Khas, District Meerut, Uttar Pradesh - 250001"></textarea>
+                    </div>
+
+                    <button class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl shadow-md transition" onclick="saveCitizenProfile()">
+                        Save & Open Grievance Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW 4: CITIZEN DASHBOARD -->
+            <div id="view-citizen-dashboard" class="view-panel space-y-6">
+                <!-- Welcome Banner -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping"></span>
+                            <span class="text-xs font-bold text-green-700 uppercase tracking-wider">Citizen Portal Active</span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900" id="dash-citizen-name">Welcome, Citizen</h2>
+                        <p class="text-xs text-slate-500" id="dash-citizen-phone">Phone: 9876543210</p>
+                    </div>
+                    <button class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-5 py-3 rounded-xl shadow-md flex items-center gap-2 transition" onclick="openNewComplaintForm()">
+                        <i class="fas fa-plus"></i>
+                        <span>+ File New Grievance</span>
+                    </button>
+                </div>
+
+                <!-- Complaints Pipeline List -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-bold text-slate-900 flex items-center justify-between">
+                        <span>Your Filed Grievances / आपकी शिकायतें</span>
+                        <span id="citizen-complaint-count" class="text-xs bg-slate-200 px-2 py-0.5 rounded-full font-bold">0</span>
+                    </h3>
+
+                    <div id="citizen-complaint-list" class="space-y-4">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 5: FILE NEW GRIEVANCE FORM (Multi-Modal with 3-Step Urgency & Location) -->
+            <div id="view-file-complaint" class="view-panel bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                <div class="flex justify-between items-center border-b pb-4">
+                    <div>
+                        <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Multilingual AI Filing</span>
+                        <h2 class="text-2xl font-extrabold text-slate-900">File Public Grievance / शिकायत दर्ज करें</h2>
+                    </div>
+                    <button class="text-slate-400 hover:text-slate-600 text-xl font-bold" onclick="navigateTo('view-citizen-dashboard')">&times;</button>
+                </div>
+
+                <!-- Step A: Complaint Speech/Text Input -->
+                <div id="comp-input-phase" class="space-y-4">
+                    <label class="block text-xs font-bold text-slate-700">
+                        Describe the problem (Speak in your native dialect or type)
+                    </label>
+
+                    <div class="relative">
+                        <textarea id="complaint-desc-input" class="w-full border border-slate-300 p-4 rounded-xl text-sm h-32 focus:ring-2 focus:ring-blue-500" placeholder="e.g. हमारे गाँव में 3 दिन से बिजली का खंभा गिरा हुआ है और करंट का खतरा है..."></textarea>
+                        
+                        <!-- Mic Button inside text area -->
+                        <button id="comp-mic-btn" class="absolute right-3 bottom-3 w-10 h-10 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center shadow transition" onclick="toggleComplaintVoice()">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                    </div>
+
+                    <!-- Cancel / Re-record voice actions for complaint -->
+                    <div class="flex justify-between items-center text-xs">
+                        <span id="comp-voice-status" class="text-slate-500">Tap mic to speak your grievance</span>
+                        <div class="flex gap-2">
+                            <button class="text-red-600 hover:underline" onclick="clearComplaintText()">Clear / Cancel Voice</button>
+                        </div>
+                    </div>
+
+                    <button class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-xl shadow-md transition flex items-center justify-center gap-2" onclick="processComplaintAI()">
+                        <span>Step 2: AI Urgency & Department Scan</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- Step B: AI Analysis Result, 3-Step Urgency & Incident Location Selection -->
+                <div id="comp-analysis-phase" class="hidden space-y-6">
+                    
+                    <!-- AI Classification & Urgency Banner -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                            <div>
+                                <span class="text-xs text-slate-500">Target Department(s):</span>
+                                <div id="res-dept-badges-container" class="ml-2 inline-flex gap-1 flex-wrap">
+                                    <span class="font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded text-xs">WTR - Jal Board</span>
+                                </div>
+                            </div>
+                            <div id="res-urgency-container">
+                                <!-- Tier 1 Critical or Tier 3 Normal Badge -->
+                            </div>
+                        </div>
+
+                        <div class="text-xs text-slate-600 space-y-1">
+                            <p><strong>Citizen Charter SLA:</strong> <span id="res-sla-text" class="font-bold text-green-700">48 Hours</span></p>
+                            <p><strong>Regional Summary:</strong> <span id="res-summary-regional" class="italic text-slate-800"></span></p>
+                            <p><strong>English Summary:</strong> <span id="res-summary-english" class="italic text-slate-800"></span></p>
+                        </div>
+
+                        <!-- 3-Step Clarifying Question Prompt -->
+                        <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg text-xs text-amber-900">
+                            <p class="font-bold">AI Safety Check:</p>
+                            <p id="res-clarifying-question" class="mt-0.5"></p>
+                        </div>
+                    </div>
+
+                    <!-- 3 Location Modes: GPS, Photo AI, Voice/Text -->
+                    <div class="space-y-3">
+                        <label class="block text-xs font-bold text-slate-800">Incident Location / घटना का स्थान (Select One):</label>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <button type="button" class="border border-slate-300 hover:border-blue-500 hover:bg-blue-50 p-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2" onclick="getGPSLocation()">
+                                <i class="fas fa-location-crosshairs text-blue-600"></i>
+                                <span>Use My GPS</span>
+                            </button>
+                            
+                            <label class="border border-slate-300 hover:border-blue-500 hover:bg-blue-50 p-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-center">
+                                <i class="fas fa-camera text-purple-600"></i>
+                                <span>Upload Photo (AI)</span>
+                                <input type="file" id="incident-photo-file" class="hidden" accept="image/*" onchange="handlePhotoUpload(this)">
+                            </label>
+
+                            <button type="button" class="border border-slate-300 hover:border-blue-500 hover:bg-blue-50 p-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2" onclick="focusIncidentText()">
+                                <i class="fas fa-keyboard text-slate-600"></i>
+                                <span>Type / Speak Spot</span>
+                            </button>
+                        </div>
+
+                        <input type="text" id="incident-location-input" class="w-full border border-slate-300 p-3 rounded-xl text-sm" placeholder="Incident spot / landmark (e.g. Near Government Primary School, Main Chowk)">
+                    </div>
+
+                    <!-- Final Submission & Audio Summary Verification -->
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-sm" onclick="speakConfirmationSummary()">
+                            <i class="fas fa-volume-high"></i>
+                            <span>Listen to Summary</span>
+                        </button>
+                        <button type="button" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-sm" onclick="submitFinalGrievance()">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Submit Grievance</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step C: Success Confirmation & Bilingual PDF Download -->
+                <div id="comp-success-phase" class="hidden text-center py-6 space-y-6">
+                    <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold animate-bounce">
+                        <i class="fas fa-check"></i>
+                    </div>
+
+                    <div class="space-y-1">
+                        <h3 class="text-2xl font-extrabold text-slate-900">Grievance Registered Successfully!</h3>
+                        <p class="text-xs text-slate-500">आपकी शिकायत सफलतापूर्वक दर्ज हो गई है।</p>
+                    </div>
+
+                    <div class="bg-slate-100 p-4 rounded-xl inline-block">
+                        <span class="text-xs text-slate-500 uppercase tracking-wider block">Grievance Reference ID</span>
+                        <span id="success-gid-label" class="text-2xl sm:text-3xl font-mono font-black text-blue-900">WTR-9K8L2M</span>
+                    </div>
+
+                    <!-- SMS Preview Box -->
+                    <div class="bg-blue-50 border border-blue-200 text-left p-4 rounded-xl text-xs space-y-1 max-w-lg mx-auto">
+                        <span class="font-bold text-blue-900 flex items-center gap-1.5">
+                            <i class="fas fa-comment-sms text-blue-600"></i> SMS Dispatched (In Your Regional Language):
+                        </span>
+                        <p id="success-sms-text" class="text-slate-700 italic"></p>
+                    </div>
+
+                    <!-- AI Summary Box -->
+                    <div class="bg-white border border-slate-200 text-left p-4 rounded-xl text-xs space-y-2 max-w-lg mx-auto shadow-sm">
+                        <span class="font-bold text-slate-800 flex items-center gap-1.5 border-b pb-2">
+                            <i class="fas fa-file-alt text-amber-500"></i> Complaint Official Summary
+                        </span>
+                        <p id="success-summary-reg" class="text-slate-800 font-semibold"></p>
+                        <p id="success-summary-eng" class="text-slate-500 italic mt-1 border-t pt-1"></p>
+                    </div>
+
+                    <!-- Dual Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                        <button class="flex-1 bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 rounded-xl shadow flex items-center justify-center gap-2 text-sm" onclick="downloadBilingualReceiptPDF()">
+                            <i class="fas fa-file-pdf"></i> Download Bilingual PDF
+                        </button>
+                        <button class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow text-sm" onclick="navigateTo('view-citizen-dashboard')">
+                            Go to Dashboard
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- VIEW 6: OFFICER DASHBOARD WITH LIST & INTERACTIVE INDIA MAP -->
+            <div id="view-officer-dashboard" class="view-panel space-y-6">
+                <!-- Officer Header Bar -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="bg-blue-900 text-white text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">Officer Portal</span>
+                            <span id="off-dept-badge" class="text-xs font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded">WTR - Jal Board</span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900" id="off-email-label">officer@gov.in</h2>
+                        <p class="text-xs text-slate-500">Live Spatial & Urgent Grievance Redressal Feed</p>
+                    </div>
+
+                    <!-- View Switcher Tabs: Table vs Map -->
+                    <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                        <button id="btn-tab-list" class="px-4 py-2 rounded-lg text-xs font-bold bg-white text-blue-900 shadow-sm" onclick="switchOfficerView('list')">
+                            <i class="fas fa-list"></i> List View
+                        </button>
+                        <button id="btn-tab-map" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900" onclick="switchOfficerView('map')">
+                            <i class="fas fa-map-location-dot"></i> India Map View
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Counter -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span class="text-xs text-slate-500">Total Assigned</span>
+                        <p id="stat-total" class="text-2xl font-extrabold text-blue-900">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-red-200 bg-red-50/30 shadow-sm">
+                        <span class="text-xs text-red-600 font-bold">Tier 1 Critical</span>
+                        <p id="stat-critical" class="text-2xl font-extrabold text-red-600">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
+                        <span class="text-xs text-amber-600 font-bold">Re-Opened</span>
+                        <p id="stat-reopened" class="text-2xl font-extrabold text-amber-600">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-green-200 shadow-sm">
+                        <span class="text-xs text-green-600 font-bold">Resolved</span>
+                        <p id="stat-resolved" class="text-2xl font-extrabold text-green-600">0</p>
+                    </div>
+                </div>
+
+                <!-- Officer Tab 1: Table List View -->
+                <div id="officer-list-container" class="space-y-4">
+                    <div id="officer-complaints-list" class="space-y-4">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Officer Tab 2: Interactive Leaflet India Map -->
+                <div id="officer-map-container" class="hidden bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-bold text-slate-700">Geospatial Heatmap & Urgent Incidents</span>
+                        <div class="flex gap-3">
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-600 inline-block"></span> Critical</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> High</span>
+                            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-600 inline-block"></span> Normal</span>
+                        </div>
+                    </div>
+                    <div id="map-container"></div>
+                </div>
+            </div>
+
+            <!-- VIEW 7: CITIZEN RESOLUTION FEEDBACK & RE-OPEN MODAL -->
+            <div id="modal-feedback" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+                <div class="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
+                    <div class="text-center space-y-1">
+                        <span class="text-xs font-bold text-blue-600 uppercase">Citizen Feedback / समाधान सत्यापन</span>
+                        <h3 class="text-xl font-extrabold text-slate-900">Was your problem resolved?</h3>
+                        <p class="text-xs text-slate-500">Grievance: <span id="feedback-gid-label" class="font-mono font-bold"></span></p>
+                    </div>
+
+                    <!-- Yes / No Big Choice -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="btn-fb-yes" class="border-2 border-green-500 bg-green-50 text-green-800 p-4 rounded-xl font-bold text-center flex flex-col items-center gap-1" onclick="selectFeedbackResolution(true)">
+                            <i class="fas fa-check-circle text-2xl text-green-600"></i>
+                            <span>Yes, Fully Fixed</span>
+                        </button>
+                        <button id="btn-fb-no" class="border-2 border-slate-200 text-slate-700 p-4 rounded-xl font-bold text-center flex flex-col items-center gap-1 hover:border-red-500 hover:bg-red-50" onclick="selectFeedbackResolution(false)">
+                            <i class="fas fa-times-circle text-2xl text-red-600"></i>
+                            <span>No, Incomplete</span>
+                        </button>
+                    </div>
+
+                    <!-- Rating Stars (Active if Yes) -->
+                    <div id="feedback-rating-box" class="text-center space-y-2">
+                        <label class="text-xs font-bold text-slate-700">Rate Service Quality (1 to 5 Stars):</label>
+                        <div class="flex justify-center gap-2 text-2xl text-amber-400" id="star-rating-container">
+                            <i class="fas fa-star cursor-pointer" onclick="setStarRating(1)"></i>
+                            <i class="fas fa-star cursor-pointer" onclick="setStarRating(2)"></i>
+                            <i class="fas fa-star cursor-pointer" onclick="setStarRating(3)"></i>
+                            <i class="fas fa-star cursor-pointer" onclick="setStarRating(4)"></i>
+                            <i class="fas fa-star cursor-pointer" onclick="setStarRating(5)"></i>
+                        </div>
+                    </div>
+
+                    <!-- Remarks Text -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Remarks / कारण (Optional)</label>
+                        <textarea id="feedback-remarks-input" class="w-full border border-slate-300 p-3 rounded-xl text-xs h-20" placeholder="If not fixed, describe what is left..."></textarea>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button class="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl text-xs font-bold" onclick="closeFeedbackModal()">Cancel</button>
+                        <button class="flex-1 bg-blue-700 hover:bg-blue-800 text-white py-3 rounded-xl text-xs font-bold" onclick="submitCitizenFeedback()">Submit Feedback</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HIDDEN BILINGUAL RECEIPT TEMPLATE FOR PDF RENDERING -->
+            <div id="pdf-receipt-template" class="hidden p-8 bg-white text-slate-900 font-sans max-w-2xl border-4 border-double border-blue-900 rounded-lg">
+                <div class="text-center border-b-2 border-blue-900 pb-4 mb-4">
+                    <h2 class="text-xl font-bold uppercase tracking-wider text-blue-950">भारत सरकार / GOVERNMENT OF INDIA</h2>
+                    <h3 class="text-sm font-semibold text-slate-600">National Public Grievance Portal | राष्ट्रीय लोक शिकायत मंच</h3>
+                    <p class="text-xs text-slate-500 font-mono mt-1">OFFICIAL CITIZEN GRIEVANCE RECEIPT</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 text-xs mb-4 bg-slate-50 p-3 rounded border">
+                    <div>
+                        <p><strong>Grievance ID:</strong> <span id="pdf-gid" class="font-mono font-bold text-blue-800"></span></p>
+                        <p><strong>Citizen Name:</strong> <span id="pdf-name"></span></p>
+                        <p><strong>Phone:</strong> <span id="pdf-phone"></span></p>
+                        <p><strong>Home Address:</strong> <span id="pdf-home"></span></p>
+                    </div>
+                    <div>
+                        <p><strong>Date & Time:</strong> <span id="pdf-date"></span></p>
+                        <p><strong>Department:</strong> <span id="pdf-dept"></span></p>
+                        <p><strong>Priority Tier:</strong> <span id="pdf-urgency"></span></p>
+                        <p><strong>Incident Spot:</strong> <span id="pdf-spot"></span></p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 text-xs mb-6">
+                    <div class="border p-3 rounded bg-blue-50/50">
+                        <p class="font-bold text-blue-900 mb-1">Grievance Summary in Native Language / क्षेत्रीय भाषा में विवरण:</p>
+                        <p id="pdf-summary-reg" class="text-slate-800 leading-relaxed"></p>
+                    </div>
+                    <div class="border p-3 rounded bg-slate-50">
+                        <p class="font-bold text-slate-900 mb-1">English Translation for Official Record:</p>
+                        <p id="pdf-summary-eng" class="text-slate-800 leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <div class="border-t pt-4 text-center text-[10px] text-slate-500">
+                    This is an official system-generated grievance acknowledgment under the Citizen Charter Act. Keep this ID for tracking.
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ================= RIGHT SIDEBAR: 50+ NATIVE LANGUAGES (4 Cols on Desktop) ================= -->
+        <aside class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col h-[750px] sticky top-20">
+            
+            <div class="border-b pb-3 mb-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-1.5">
+                        <i class="fas fa-language text-blue-700"></i>
+                        <span>Select Language / भाषा चुनें</span>
+                    </h3>
+                    <span id="lang-count-badge" class="bg-blue-100 text-blue-800 text-[11px] font-bold px-2 py-0.5 rounded-full">50</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">
+                    Click any native script to instantly translate the entire portal.
+                </p>
+                
+                <!-- Language Filter Search -->
+                <div class="mt-3 relative">
+                    <input type="text" id="lang-search-input" class="w-full border border-slate-200 text-xs p-2 pl-7 rounded-lg focus:ring-1 focus:ring-blue-500" placeholder="Search language / खोजें..." onkeyup="filterLanguages(this.value)">
+                    <i class="fas fa-search absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+                </div>
+            </div>
+
+            <!-- Scrollable 50 Native Language List -->
+            <div id="languages-sidebar-list" class="flex-1 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+                <!-- Rendered dynamically via API -->
+            </div>
+
+            <div class="border-t pt-3 mt-3 text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5">
+                <i class="fas fa-sparkles text-amber-500"></i>
+                <span>Spoken dialect auto-added by AI</span>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Loading Toast Overlay -->
+    <div id="global-loading" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center hidden">
+        <div class="bg-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-200">
+            <div class="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span id="loading-text" class="text-sm font-bold text-slate-800">Processing with AI...</span>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>
