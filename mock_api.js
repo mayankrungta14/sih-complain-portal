@@ -1,6 +1,6 @@
 // mock_api.js - Completely replaces the Python Backend for GitHub Pages
 
-const GEMINI_API_KEY = "AQ.Ab8RN6LpMAzHrrJyoX19UZxhNnGQbNeEXosqsp3xsVKR2xjSrg"; // PASTE YOUR API KEY HERE
+const GEMINI_API_KEY = ""; // PASTE YOUR API KEY HERE
 
 // Initialize Fake Database in LocalStorage
 if (!localStorage.getItem('sih_complaints')) {
